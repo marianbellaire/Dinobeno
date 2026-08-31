@@ -1,5 +1,6 @@
-import { GROUND_HEIGHT, GROUND_Y, HUNTER_HEIGHT, HUNTER_WIDTH, PLAYER_WIDTH } from "./constants";
+import { GROUND_HEIGHT, GROUND_Y, HUNTER_HEIGHT, HUNTER_WIDTH, PICKUP_SIZE, PLAYER_WIDTH } from "./constants";
 import type { Obstacle } from "./obstacles";
+import type { Pickup } from "./pickups";
 import { getPlayerHitboxHeight, type PlayerState } from "./player";
 
 /** Zeichnet Himmel-Hintergrund + Boden-Streifen über die volle sichtbare Weltbreite. */
@@ -185,6 +186,28 @@ export function drawObstacle(ctx: CanvasRenderingContext2D, obstacle: Obstacle) 
     ctx.fill();
   }
 
+  ctx.restore();
+}
+
+/**
+ * Zeichnet ein Power-up/Ressource als Emoji auf einem leicht schwebenden, halb-
+ * transparenten Kreis (bessere Lesbarkeit vor Himmel/Boden) – einfachster MVP-
+ * Platzhalter, der direkt die Icons aus der Spec (🍓⚡🛡️) zeigt.
+ */
+export function drawPickup(ctx: CanvasRenderingContext2D, pickup: Pickup) {
+  const { x, y } = pickup;
+  const radius = PICKUP_SIZE / 2 + 4;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = `${PICKUP_SIZE}px system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(pickup.config.emoji, x, y + 1);
   ctx.restore();
 }
 

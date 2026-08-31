@@ -48,3 +48,19 @@ export const STARTING_LIVES = 3;
 export const SCORE_PER_SECOND = 10; // kontinuierliche Punkte pro Sekunde Überleben
 // Dauer der Unverwundbarkeit nach einem Treffer (+ visuelles Blinken).
 export const INVINCIBILITY_SECONDS = 1.6;
+
+// --- Power-ups & Ressourcen ---
+export const PICKUP_SPAWN_INTERVAL_MIN = 3; // Sekunden
+export const PICKUP_SPAWN_INTERVAL_MAX = 6; // Sekunden
+export const PICKUP_SIZE = 26;
+// Höhe des Mittelpunkts über dem Boden: bewusst so gewählt, dass ein laufender
+// (stehender) Spieler automatisch einsammelt, ein duckender aber knapp darunter
+// durchrutscht (Duck = "absichtlich verpassen").
+export const PICKUP_Y_OFFSET = 55;
+
+export const BERRY_BONUS_POINTS = 50;
+
+export const BOOST_DURATION_SECONDS = 4;
+// Wird zur effektiven Spieler-Geschwindigkeit addiert, wodurch der Jäger relativ
+// langsamer wird und der Abstand während des Boosts wieder wächst (siehe hunter.ts).
+export const BOOST_SPEED_BONUS = 0.6;

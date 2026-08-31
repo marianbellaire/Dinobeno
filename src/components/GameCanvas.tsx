@@ -14,6 +14,8 @@ export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scoreRef = useRef<HTMLDivElement>(null);
+  const boostRef = useRef<HTMLSpanElement>(null);
+  const shieldRef = useRef<HTMLSpanElement>(null);
 
   const [lives, setLives] = useState(STARTING_LIVES);
   const [gameOverScore, setGameOverScore] = useState<number | null>(null);
@@ -126,10 +128,21 @@ export default function GameCanvas() {
     const visibleWorldWidth = width / scale;
     engine.update(dt, visibleWorldWidth);
 
-    // Der Score ändert sich jeden Frame – direkt ins DOM schreiben statt über
-    // React-State, damit nicht 60x pro Sekunde die ganze Komponente neu rendert.
+    // Score + Power-up-Status ändern sich jeden Frame – direkt ins DOM schreiben
+    // statt über React-State, damit nicht 60x pro Sekunde die ganze Komponente
+    // neu rendert (Herzen bleiben State, weil sie nur selten wechseln).
     if (scoreRef.current) {
       scoreRef.current.textContent = `${Math.floor(engine.score)}`;
+    }
+    if (boostRef.current) {
+      const boosting = engine.boostTimeRemaining > 0;
+      boostRef.current.hidden = !boosting;
+      if (boosting) {
+        boostRef.current.textContent = `⚡ ${Math.ceil(engine.boostTimeRemaining)}s`;
+      }
+    }
+    if (shieldRef.current) {
+      shieldRef.current.hidden = !engine.hasShield;
     }
 
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
@@ -157,6 +170,14 @@ export default function GameCanvas() {
         <span aria-label={`${lives} Leben übrig`}>
           {"❤️".repeat(lives)}
           {"🖤".repeat(Math.max(STARTING_LIVES - lives, 0))}
+        </span>
+        <span
+          ref={boostRef}
+          hidden
+          className="rounded-full bg-amber-400 px-2 py-0.5 text-sm font-bold text-amber-950"
+        />
+        <span ref={shieldRef} hidden aria-label="Schild aktiv" className="text-lg">
+          🛡️
         </span>
       </div>
 
