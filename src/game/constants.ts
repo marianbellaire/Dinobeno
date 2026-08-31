@@ -42,3 +42,9 @@ export const HUNTER_BASE_CATCH_UP_RATE = 160; // px/s
 export const OBSTACLE_SPAWN_MARGIN = 40; // Abstand hinter dem rechten Bildrand beim Spawn
 export const OBSTACLE_SPAWN_INTERVAL_MIN = 1.1; // Sekunden
 export const OBSTACLE_SPAWN_INTERVAL_MAX = 2.2; // Sekunden
+
+// --- Punkte & Leben ---
+export const STARTING_LIVES = 3;
+export const SCORE_PER_SECOND = 10; // kontinuierliche Punkte pro Sekunde Überleben
+// Dauer der Unverwundbarkeit nach einem Treffer (+ visuelles Blinken).
+export const INVINCIBILITY_SECONDS = 1.6;
