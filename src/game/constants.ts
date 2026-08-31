@@ -21,5 +21,24 @@ export const BASE_JUMP_VELOCITY = -980; // px/s (negativ = nach oben)
 
 export const BASE_GAME_SPEED = 320; // px/s, Grundtempo der Welt (Boden-Scroll)
 
+// Mindestdauer eines Duck-Vorgangs, auch wenn ein Dino-Config einen kleineren Wert hat.
+export const MIN_DUCK_SECONDS = 0.3;
+
 // Mindestgröße für Touch-Buttons (Vorgabe: min. 44x44px).
 export const TOUCH_TARGET_SIZE = 64;
+
+// --- Jäger (Velociraptor) ---
+export const HUNTER_WIDTH = 74;
+export const HUNTER_HEIGHT = 52;
+// Anfangsabstand des Jägers zum Spieler in logischen px.
+export const INITIAL_HUNTER_GAP = 420;
+// Ab diesem Abstand gilt der Jäger als "hat aufgeholt" (= Treffer).
+export const MIN_HUNTER_GAP = 6;
+// Basis-Tempo, mit dem sich der Abstand verringert, pro Einheit Geschwindigkeits-
+// unterschied zwischen Jäger und Spieler (siehe hunter.ts).
+export const HUNTER_BASE_CATCH_UP_RATE = 160; // px/s
+
+// --- Hindernisse ---
+export const OBSTACLE_SPAWN_MARGIN = 40; // Abstand hinter dem rechten Bildrand beim Spawn
+export const OBSTACLE_SPAWN_INTERVAL_MIN = 1.1; // Sekunden
+export const OBSTACLE_SPAWN_INTERVAL_MAX = 2.2; // Sekunden

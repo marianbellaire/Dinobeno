@@ -1,5 +1,6 @@
-import { GROUND_HEIGHT, GROUND_Y, PLAYER_DUCK_HEIGHT, PLAYER_WIDTH } from "./constants";
-import type { PlayerState } from "./player";
+import { GROUND_HEIGHT, GROUND_Y, HUNTER_HEIGHT, HUNTER_WIDTH, PLAYER_WIDTH } from "./constants";
+import type { Obstacle } from "./obstacles";
+import { getPlayerHitboxHeight, type PlayerState } from "./player";
 
 /** Zeichnet Himmel-Hintergrund + Boden-Streifen über die volle sichtbare Weltbreite. */
 export function drawBackground(
@@ -37,7 +38,7 @@ export function drawPlayer(
   color: string,
   invincible: boolean,
 ) {
-  const bodyHeight = player.isDucking ? PLAYER_DUCK_HEIGHT : 46;
+  const bodyHeight = getPlayerHitboxHeight(player);
   const groundY = GROUND_Y - player.height;
   const bodyY = groundY - bodyHeight;
 
@@ -89,6 +90,100 @@ export function drawPlayer(
   ctx.beginPath();
   ctx.arc(x + PLAYER_WIDTH + 24, bodyY + bodyHeight * 0.5, 8, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.restore();
+}
+
+/**
+ * Zeichnet den Velociraptor-Jäger als einfachen geometrischen Platzhalter (schlanker
+ * Körper, aufgerichteter Kopf mit Zahnreihe, Sichelklaue) – bis echte Sprites/Pixel-Art
+ * nachgezogen werden.
+ */
+export function drawHunter(ctx: CanvasRenderingContext2D, x: number, color: string) {
+  const bodyY = GROUND_Y - HUNTER_HEIGHT;
+
+  ctx.save();
+
+  // Körper (schlanker als der Ankylosaurus)
+  ctx.fillStyle = color;
+  roundRect(ctx, x, bodyY + HUNTER_HEIGHT * 0.3, HUNTER_WIDTH * 0.75, HUNTER_HEIGHT * 0.5, 10);
+  ctx.fill();
+
+  // Aufgerichteter Hals + Kopf
+  ctx.beginPath();
+  ctx.moveTo(x + HUNTER_WIDTH * 0.55, bodyY + HUNTER_HEIGHT * 0.4);
+  ctx.lineTo(x + HUNTER_WIDTH, bodyY);
+  ctx.lineTo(x + HUNTER_WIDTH * 0.95, bodyY + HUNTER_HEIGHT * 0.35);
+  ctx.closePath();
+  ctx.fill();
+
+  // Zahnreihe (Andeutung der Jäger-Gefahr)
+  ctx.fillStyle = "#f5f5f5";
+  for (let i = 0; i < 3; i++) {
+    const tx = x + HUNTER_WIDTH * 0.82 + i * 5;
+    ctx.beginPath();
+    ctx.moveTo(tx, bodyY + HUNTER_HEIGHT * 0.12);
+    ctx.lineTo(tx + 4, bodyY + HUNTER_HEIGHT * 0.12);
+    ctx.lineTo(tx + 2, bodyY + HUNTER_HEIGHT * 0.22);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Auge
+  ctx.fillStyle = "#1a1a1a";
+  ctx.beginPath();
+  ctx.arc(x + HUNTER_WIDTH * 0.9, bodyY + HUNTER_HEIGHT * 0.18, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Beine (Andeutung)
+  ctx.fillStyle = color;
+  ctx.fillRect(x + HUNTER_WIDTH * 0.12, bodyY + HUNTER_HEIGHT * 0.75, 6, HUNTER_HEIGHT * 0.25);
+  ctx.fillRect(x + HUNTER_WIDTH * 0.45, bodyY + HUNTER_HEIGHT * 0.75, 6, HUNTER_HEIGHT * 0.25);
+
+  // Sichelklauen-Schwanz
+  ctx.beginPath();
+  ctx.moveTo(x, bodyY + HUNTER_HEIGHT * 0.5);
+  ctx.lineTo(x - 26, bodyY + HUNTER_HEIGHT * 0.3);
+  ctx.lineTo(x - 4, bodyY + HUNTER_HEIGHT * 0.6);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/** Zeichnet ein Hindernis als einfache geometrische Form passend zu seinem Typ. */
+export function drawObstacle(ctx: CanvasRenderingContext2D, obstacle: Obstacle) {
+  const { x, config } = obstacle;
+  const { width, height, color, type } = config;
+  const y = GROUND_Y - height;
+
+  ctx.save();
+  ctx.fillStyle = color;
+
+  if (type === "stone") {
+    roundRect(ctx, x, y, width, height, 8);
+    ctx.fill();
+  } else if (type === "tree") {
+    // Stamm
+    ctx.fillRect(x + width * 0.35, y + height * 0.5, width * 0.3, height * 0.5);
+    // Krone
+    ctx.beginPath();
+    ctx.moveTo(x, y + height * 0.55);
+    ctx.lineTo(x + width / 2, y);
+    ctx.lineTo(x + width, y + height * 0.55);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    // Kleiner Gegner: geduckter Körper mit Stachel
+    roundRect(ctx, x, y + height * 0.25, width, height * 0.75, 6);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + width * 0.5, y);
+    ctx.lineTo(x + width * 0.35, y + height * 0.35);
+    ctx.lineTo(x + width * 0.65, y + height * 0.35);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   ctx.restore();
 }

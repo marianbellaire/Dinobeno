@@ -1,38 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
-import { ANKYLOSAURUS } from "@/game/dinoConfigs";
-import { GROUND_Y, LOGICAL_HEIGHT, PLAYER_X_RATIO, TOUCH_TARGET_SIZE } from "@/game/constants";
-import { drawBackground, drawPlayer } from "@/game/draw";
-import { createPlayerState, jump, setDucking, updatePlayer, type PlayerState } from "@/game/player";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { LOGICAL_HEIGHT, TOUCH_TARGET_SIZE } from "@/game/constants";
+import { GameEngine } from "@/game/GameEngine";
 import { useGameLoop } from "@/hooks/useGameLoop";
 
 /** Ab wie viel vertikaler Fingerbewegung ein Swipe als "nach unten" gilt. */
 const SWIPE_DOWN_THRESHOLD = 24;
 
 export default function GameCanvas() {
-  const dino = ANKYLOSAURUS;
-
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<PlayerState>(createPlayerState());
-  const duckTimeoutRef = useRef<number | null>(null);
+
+  // TEMPORÄRES Debug-HUD für den Phase-2-Test-Checkpoint (Jäger-Annäherung/Kollision
+  // sichtbar machen). Wird in Phase 3 durch das echte Leben-/Score-System ersetzt.
+  const [hitCount, setHitCount] = useState(0);
+
+  const engineRef = useRef<GameEngine | null>(null);
+  if (engineRef.current == null) {
+    engineRef.current = new GameEngine({
+      onObstacleHit: () => setHitCount((c) => c + 1),
+      onHunterCaughtUp: () => setHitCount((c) => c + 1),
+    });
+  }
 
   // Skalierungs-Infos werden bei jedem Resize neu berechnet und beim Zeichnen gelesen.
   const viewRef = useRef({ width: 0, height: 0, scale: 1, dpr: 1 });
 
-  const doJump = useCallback(() => {
-    playerRef.current = jump(playerRef.current, dino);
-  }, [dino]);
-
-  const doDuck = useCallback(() => {
-    if (playerRef.current.isJumping) return;
-    playerRef.current = setDucking(playerRef.current, true);
-    if (duckTimeoutRef.current !== null) window.clearTimeout(duckTimeoutRef.current);
-    duckTimeoutRef.current = window.setTimeout(() => {
-      playerRef.current = setDucking(playerRef.current, false);
-    }, Math.max(dino.duckDuration, 0.3) * 1000);
-  }, [dino]);
+  const doJump = useCallback(() => engineRef.current?.jump(), []);
+  const doDuck = useCallback(() => engineRef.current?.duck(), []);
 
   // Canvas-Größe an den Container anpassen (responsive, inkl. High-DPI-Schärfe).
   useEffect(() => {
@@ -95,27 +91,22 @@ export default function GameCanvas() {
     touchStartY.current = null;
   };
 
-  // Game-Loop: Physik updaten + Frame zeichnen.
+  // Game-Loop: Zustand updaten + Frame zeichnen.
   useGameLoop((dt) => {
-    playerRef.current = updatePlayer(playerRef.current, dt);
-
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    const engine = engineRef.current;
+    if (!canvas || !ctx || !engine) return;
 
     const { width, height, scale, dpr } = viewRef.current;
     if (width === 0 || height === 0) return;
 
-    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
-    ctx.clearRect(0, 0, width / scale, height / scale);
-
     const visibleWorldWidth = width / scale;
-    drawBackground(ctx, visibleWorldWidth, LOGICAL_HEIGHT);
+    engine.update(dt, visibleWorldWidth);
 
-    const playerX = visibleWorldWidth * PLAYER_X_RATIO;
-    drawPlayer(ctx, playerX, playerRef.current, dino.color, false);
-
-    void GROUND_Y; // Referenz für spätere Kollisions-/Spawn-Logik (Phase 2)
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+    ctx.clearRect(0, 0, visibleWorldWidth, height / scale);
+    engine.draw(ctx, visibleWorldWidth);
   }, true);
 
   return (
@@ -129,6 +120,11 @@ export default function GameCanvas() {
         aria-label="Dino be no! Spielfeld"
         role="img"
       />
+
+      {/* TEMPORÄRES Debug-HUD, siehe Kommentar oben – ersetzt Phase 3 durch echtes UI. */}
+      <div className="pointer-events-none absolute left-3 top-3 rounded bg-black/40 px-2 py-1 text-sm text-white">
+        Treffer (Debug): {hitCount}
+      </div>
 
       {/* On-Screen-Buttons als Fallback für Kinder, die mit Swipe-Gesten unsicher sind. */}
       <div
