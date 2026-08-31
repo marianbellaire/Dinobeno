@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LOGICAL_HEIGHT, STARTING_LIVES, TOUCH_TARGET_SIZE } from "@/game/constants";
 import { GameEngine } from "@/game/GameEngine";
 import { loadHighScore, saveHighScore } from "@/game/highscore";
+import type { DinoConfig } from "@/game/types";
 import { useGameLoop } from "@/hooks/useGameLoop";
+import DinoSelectScreen from "./DinoSelectScreen";
 import GameOverScreen from "./GameOverScreen";
 
 /** Ab wie viel vertikaler Fingerbewegung ein Swipe als "nach unten" gilt. */
@@ -17,6 +19,8 @@ export default function GameCanvas() {
   const boostRef = useRef<HTMLSpanElement>(null);
   const shieldRef = useRef<HTMLSpanElement>(null);
 
+  // null = Auswahlbildschirm wird gezeigt, das Spiel läuft noch nicht (Phase 5).
+  const [playerDino, setPlayerDino] = useState<DinoConfig | null>(null);
   const [lives, setLives] = useState(STARTING_LIVES);
   const [gameOverScore, setGameOverScore] = useState<number | null>(null);
   // Lazy-Init liest den High-Score erst beim ersten Client-Render aus localStorage.
@@ -26,8 +30,9 @@ export default function GameCanvas() {
   const [isNewHighScore, setIsNewHighScore] = useState(false);
 
   const engineRef = useRef<GameEngine | null>(null);
-  if (engineRef.current == null) {
-    engineRef.current = new GameEngine({
+
+  const selectDino = useCallback((dino: DinoConfig) => {
+    engineRef.current = new GameEngine(dino, {
       onLifeLost: (livesRemaining) => setLives(livesRemaining),
       onGameOver: (finalScore) => {
         setGameOverScore(finalScore);
@@ -40,7 +45,16 @@ export default function GameCanvas() {
         });
       },
     });
-  }
+    setLives(STARTING_LIVES);
+    setGameOverScore(null);
+    setPlayerDino(dino);
+  }, []);
+
+  const changeDino = useCallback(() => {
+    engineRef.current = null;
+    setGameOverScore(null);
+    setPlayerDino(null);
+  }, []);
 
   // Skalierungs-Infos werden bei jedem Resize neu berechnet und beim Zeichnen gelesen.
   const viewRef = useRef({ width: 0, height: 0, scale: 1, dpr: 1 });
@@ -55,6 +69,8 @@ export default function GameCanvas() {
   }, []);
 
   // Canvas-Größe an den Container anpassen (responsive, inkl. High-DPI-Schärfe).
+  // Der Canvas bleibt immer im DOM (auch während der Auswahl), damit dieser Effekt
+  // nur einmal beim Mount laufen muss.
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -115,7 +131,8 @@ export default function GameCanvas() {
     touchStartY.current = null;
   };
 
-  // Game-Loop: Zustand updaten + Frame zeichnen.
+  // Game-Loop: Zustand updaten + Frame zeichnen. Läuft immer, tut aber nichts,
+  // solange noch kein Dino gewählt ist (engine ist dann null).
   useGameLoop((dt) => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -162,55 +179,61 @@ export default function GameCanvas() {
         role="img"
       />
 
-      {/* Punkte + Leben. */}
-      <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-3 rounded-full bg-black/40 px-3 py-1.5 text-white">
-        <span className="text-lg font-bold tabular-nums" ref={scoreRef}>
-          0
-        </span>
-        <span aria-label={`${lives} Leben übrig`}>
-          {"❤️".repeat(lives)}
-          {"🖤".repeat(Math.max(STARTING_LIVES - lives, 0))}
-        </span>
-        <span
-          ref={boostRef}
-          hidden
-          className="rounded-full bg-amber-400 px-2 py-0.5 text-sm font-bold text-amber-950"
-        />
-        <span ref={shieldRef} hidden aria-label="Schild aktiv" className="text-lg">
-          🛡️
-        </span>
-      </div>
+      {playerDino && (
+        <>
+          {/* Punkte + Leben. */}
+          <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-3 rounded-full bg-black/40 px-3 py-1.5 text-white">
+            <span className="text-lg font-bold tabular-nums" ref={scoreRef}>
+              0
+            </span>
+            <span aria-label={`${lives} Leben übrig`}>
+              {"❤️".repeat(lives)}
+              {"🖤".repeat(Math.max(STARTING_LIVES - lives, 0))}
+            </span>
+            <span
+              ref={boostRef}
+              hidden
+              className="rounded-full bg-amber-400 px-2 py-0.5 text-sm font-bold text-amber-950"
+            />
+            <span ref={shieldRef} hidden aria-label="Schild aktiv" className="text-lg">
+              🛡️
+            </span>
+          </div>
 
-      {/* On-Screen-Buttons als Fallback für Kinder, die mit Swipe-Gesten unsicher sind. */}
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-      >
-        <button
-          type="button"
-          aria-label="Ducken"
-          className="pointer-events-auto flex items-center justify-center rounded-full bg-white/80 text-2xl font-bold text-slate-700 shadow-lg active:scale-95"
-          style={{ width: TOUCH_TARGET_SIZE, height: TOUCH_TARGET_SIZE }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            doDuck();
-          }}
-        >
-          ⬇️
-        </button>
-        <button
-          type="button"
-          aria-label="Springen"
-          className="pointer-events-auto flex items-center justify-center rounded-full bg-white/80 text-2xl font-bold text-slate-700 shadow-lg active:scale-95"
-          style={{ width: TOUCH_TARGET_SIZE, height: TOUCH_TARGET_SIZE }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            doJump();
-          }}
-        >
-          ⬆️
-        </button>
-      </div>
+          {/* On-Screen-Buttons als Fallback für Kinder, die mit Swipe-Gesten unsicher sind. */}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <button
+              type="button"
+              aria-label="Ducken"
+              className="pointer-events-auto flex items-center justify-center rounded-full bg-white/80 text-2xl font-bold text-slate-700 shadow-lg active:scale-95"
+              style={{ width: TOUCH_TARGET_SIZE, height: TOUCH_TARGET_SIZE }}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                doDuck();
+              }}
+            >
+              ⬇️
+            </button>
+            <button
+              type="button"
+              aria-label="Springen"
+              className="pointer-events-auto flex items-center justify-center rounded-full bg-white/80 text-2xl font-bold text-slate-700 shadow-lg active:scale-95"
+              style={{ width: TOUCH_TARGET_SIZE, height: TOUCH_TARGET_SIZE }}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                doJump();
+              }}
+            >
+              ⬆️
+            </button>
+          </div>
+        </>
+      )}
+
+      {!playerDino && <DinoSelectScreen onSelect={selectDino} />}
 
       {gameOverScore !== null && (
         <GameOverScreen
@@ -218,6 +241,7 @@ export default function GameCanvas() {
           highScore={highScore}
           isNewHighScore={isNewHighScore}
           onRestart={restart}
+          onChangeDino={changeDino}
         />
       )}
     </div>

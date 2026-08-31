@@ -3,6 +3,8 @@ interface GameOverScreenProps {
   highScore: number;
   isNewHighScore: boolean;
   onRestart: () => void;
+  /** Zurück zum Dino-Auswahlbildschirm (Phase 5) statt mit demselben Dino neu zu starten. */
+  onChangeDino: () => void;
 }
 
 /** Overlay mit erreichtem Score, High-Score-Vergleich und Restart-Button (Phase 3). */
@@ -11,6 +13,7 @@ export default function GameOverScreen({
   highScore,
   isNewHighScore,
   onRestart,
+  onChangeDino,
 }: GameOverScreenProps) {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-4">
@@ -34,6 +37,10 @@ export default function GameOverScreen({
           className="mt-2 w-full rounded-full bg-emerald-600 px-6 py-3 text-lg font-bold text-white shadow-md active:scale-95"
         >
           Nochmal spielen
+        </button>
+
+        <button type="button" onClick={onChangeDino} className="text-sm text-slate-500 underline">
+          Anderen Dino wählen
         </button>
       </div>
     </div>

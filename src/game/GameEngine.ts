@@ -14,7 +14,7 @@ import {
   SCORE_PER_SECOND,
   STARTING_LIVES,
 } from "./constants";
-import { ANKYLOSAURUS, VELOCIRAPTOR } from "./dinoConfigs";
+import { pickRandomHunter } from "./dinoConfigs";
 import { getDifficultyLevel, getSpawnIntervalMultiplier, getSpeedMultiplier } from "./difficulty";
 import { drawBackground, drawHunter, drawObstacle, drawPickup, drawPlayer } from "./draw";
 import {
@@ -27,6 +27,7 @@ import {
 import { createObstacleSpawner, getObstacleRect, type Obstacle } from "./obstacles";
 import { createPickupSpawner, getPickupRect, type Pickup } from "./pickups";
 import { createPlayerState, duck, getPlayerRect, jump, updatePlayer, type PlayerState } from "./player";
+import type { DinoConfig } from "./types";
 
 const PLAYER_HITBOX_INSET = 0.12;
 
@@ -50,6 +51,11 @@ export interface GameEngineCallbacks {
  * (siehe GameCanvas.tsx).
  */
 export class GameEngine {
+  /** Vom Auswahlbildschirm gewählter Spieler-Dino (siehe DinoSelectScreen.tsx). */
+  playerDino: DinoConfig;
+  /** Zufällig aus HUNTER_DINOS gewählt – bei jedem reset() neu ausgewürfelt. */
+  hunterDino: DinoConfig = pickRandomHunter();
+
   player: PlayerState = createPlayerState();
   hunter: HunterState = createHunterState();
   obstacles: Obstacle[] = [];
@@ -72,22 +78,24 @@ export class GameEngine {
   private playerX = 0;
   private callbacks: GameEngineCallbacks;
 
-  constructor(callbacks: GameEngineCallbacks = {}) {
+  constructor(playerDino: DinoConfig, callbacks: GameEngineCallbacks = {}) {
+    this.playerDino = playerDino;
     this.callbacks = callbacks;
   }
 
   jump() {
     if (this.status !== "playing") return;
-    this.player = jump(this.player, ANKYLOSAURUS);
+    this.player = jump(this.player, this.playerDino);
   }
 
   duck() {
     if (this.status !== "playing") return;
-    this.player = duck(this.player, ANKYLOSAURUS);
+    this.player = duck(this.player, this.playerDino);
   }
 
-  /** Setzt das komplette Spiel für einen Neustart zurück. */
+  /** Setzt das komplette Spiel für einen Neustart zurück (Spieler-Dino bleibt gleich). */
   reset() {
+    this.hunterDino = pickRandomHunter(); // neue Zufalls-Bedrohung pro Durchlauf
     this.player = createPlayerState();
     this.hunter = createHunterState();
     this.obstacles = [];
@@ -128,8 +136,8 @@ export class GameEngine {
     this.player = updatePlayer(this.player, dt);
     this.hunter = updateHunter(
       this.hunter,
-      ANKYLOSAURUS,
-      VELOCIRAPTOR,
+      this.playerDino,
+      this.hunterDino,
       dt,
       speedMultiplier,
       playerSpeedBonus,
@@ -238,7 +246,7 @@ export class GameEngine {
     drawBackground(ctx, visibleWorldWidth, 0);
 
     const hunterX = this.playerX - this.hunter.gap;
-    drawHunter(ctx, hunterX, VELOCIRAPTOR.color);
+    drawHunter(ctx, hunterX, this.hunterDino);
 
     for (const obstacle of this.obstacles) {
       drawObstacle(ctx, obstacle);
@@ -248,6 +256,6 @@ export class GameEngine {
       drawPickup(ctx, pickup);
     }
 
-    drawPlayer(ctx, this.playerX, this.player, ANKYLOSAURUS.color, this.invincibleTimeRemaining > 0);
+    drawPlayer(ctx, this.playerX, this.player, this.playerDino, this.invincibleTimeRemaining > 0);
   }
 }

@@ -3,7 +3,7 @@
 // weitere Jäger wie T-Rex/Dilophosaurus) einfach neue Einträge hinzufügen können,
 // ohne Spiel-Logik anzufassen.
 
-export type SpecialAbilityId = "armor-roll";
+export type SpecialAbilityId = "armor-roll" | "quick-duck" | "tail-spikes";
 
 export interface SpecialAbility {
   id: SpecialAbilityId;
