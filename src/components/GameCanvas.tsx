@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LOGICAL_HEIGHT, STARTING_LIVES, TOUCH_TARGET_SIZE } from "@/game/constants";
 import { GameEngine } from "@/game/GameEngine";
 import { loadHighScore, saveHighScore } from "@/game/highscore";
+import { loadMuted, playBerry, playGameOver, playHit, playJump, saveMuted, setMuted } from "@/game/sound";
 import type { DinoConfig } from "@/game/types";
 import { useGameLoop } from "@/hooks/useGameLoop";
 import DinoSelectScreen from "./DinoSelectScreen";
@@ -28,13 +29,23 @@ export default function GameCanvas() {
   // Game-Over-Overlay auftaucht, nie im initialen HTML.
   const [highScore, setHighScore] = useState(loadHighScore);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  // Lazy-Init wie beim High-Score – der Wert wirkt sich erst nach dem Mount aus.
+  const [muted, setMutedState] = useState(loadMuted);
+
+  useEffect(() => {
+    setMuted(muted);
+    saveMuted(muted);
+  }, [muted]);
 
   const engineRef = useRef<GameEngine | null>(null);
 
   const selectDino = useCallback((dino: DinoConfig) => {
     engineRef.current = new GameEngine(dino, {
+      onHit: () => playHit(),
+      onBerryCollected: () => playBerry(),
       onLifeLost: (livesRemaining) => setLives(livesRemaining),
       onGameOver: (finalScore) => {
+        playGameOver();
         setGameOverScore(finalScore);
         setHighScore((prevHighScore) => {
           const isNew = finalScore > prevHighScore;
@@ -59,7 +70,10 @@ export default function GameCanvas() {
   // Skalierungs-Infos werden bei jedem Resize neu berechnet und beim Zeichnen gelesen.
   const viewRef = useRef({ width: 0, height: 0, scale: 1, dpr: 1 });
 
-  const doJump = useCallback(() => engineRef.current?.jump(), []);
+  const doJump = useCallback(() => {
+    playJump();
+    engineRef.current?.jump();
+  }, []);
   const doDuck = useCallback(() => engineRef.current?.duck(), []);
 
   const restart = useCallback(() => {
@@ -179,10 +193,32 @@ export default function GameCanvas() {
         role="img"
       />
 
+      {/* Stumm-Schalter, immer erreichbar (auch im Auswahlbildschirm). Im Querformat
+          kann bei iPhones mit Notch die rechte obere Ecke verdeckt sein, daher
+          zusätzlich zum festen Abstand das größere von beidem via safe-area-inset. */}
+      <button
+        type="button"
+        aria-label={muted ? "Ton einschalten" : "Ton ausschalten"}
+        className="absolute flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-lg text-white active:scale-95"
+        style={{
+          top: "max(0.75rem, env(safe-area-inset-top))",
+          right: "max(0.75rem, env(safe-area-inset-right))",
+        }}
+        onClick={() => setMutedState((m) => !m)}
+      >
+        {muted ? "🔇" : "🔊"}
+      </button>
+
       {playerDino && (
         <>
           {/* Punkte + Leben. */}
-          <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-3 rounded-full bg-black/40 px-3 py-1.5 text-white">
+          <div
+            className="pointer-events-none absolute flex items-center gap-3 rounded-full bg-black/40 px-3 py-1.5 text-white"
+            style={{
+              top: "max(0.75rem, env(safe-area-inset-top))",
+              left: "max(0.75rem, env(safe-area-inset-left))",
+            }}
+          >
             <span className="text-lg font-bold tabular-nums" ref={scoreRef}>
               0
             </span>
@@ -203,7 +239,11 @@ export default function GameCanvas() {
           {/* On-Screen-Buttons als Fallback für Kinder, die mit Swipe-Gesten unsicher sind. */}
           <div
             className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4"
-            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+            style={{
+              paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+              paddingLeft: "max(1rem, env(safe-area-inset-left))",
+              paddingRight: "max(1rem, env(safe-area-inset-right))",
+            }}
           >
             <button
               type="button"

@@ -38,10 +38,15 @@ function randomBetween(min: number, max: number): number {
 }
 
 export interface GameEngineCallbacks {
+  /** Ein Treffer ist passiert (Hindernis oder Jäger hat aufgeholt) – auch wenn ein
+   *  Schild ihn abgefangen hat. Für Sound-Feedback (Phase 6). */
+  onHit?: () => void;
   /** Ein Leben wurde abgezogen (Hindernis-Treffer oder Jäger hat aufgeholt). */
   onLifeLost?: (livesRemaining: number) => void;
   /** 0 Leben erreicht – Spiel vorbei. */
   onGameOver?: (finalScore: number) => void;
+  /** Eine Beere wurde eingesammelt (Bonuspunkte). Für Sound-Feedback (Phase 6). */
+  onBerryCollected?: () => void;
 }
 
 /**
@@ -184,6 +189,8 @@ export class GameEngine {
    * Ist ein Schild aktiv, wird stattdessen nur der Schild verbraucht.
    */
   private registerHit() {
+    this.callbacks.onHit?.();
+
     if (this.hasShield) {
       this.hasShield = false;
       this.invincibleTimeRemaining = INVINCIBILITY_SECONDS;
@@ -231,6 +238,7 @@ export class GameEngine {
     switch (pickup.config.type) {
       case "berry":
         this.score += BERRY_BONUS_POINTS;
+        this.callbacks.onBerryCollected?.();
         break;
       case "boost":
         this.boostTimeRemaining = BOOST_DURATION_SECONDS;

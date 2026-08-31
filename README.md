@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dino be no! 🦖
 
-## Getting Started
+Side-Scroller-Endless-Runner-PWA: Als Ankylosaurus, Triceratops oder Stegosaurus
+einem jagenden Velociraptor (oder T-Rex) entkommen und Hindernissen ausweichen.
 
-First, run the development server:
+Live: **https://dinobeno.marianbellaire.de**
+
+## Tech-Stack
+
+- Next.js 16 (App Router) + TypeScript, statisch exportiert (`output: "export"`)
+- HTML5 Canvas fürs Spielfeld, Tailwind CSS für UI-Overlays (Menüs, HUD)
+- `localStorage` für High-Score und Ton-Einstellung (kein Backend)
+- PWA: Web App Manifest + Service Worker (offline spielbar, "Zum Home-Bildschirm")
+- Deployment: GitHub Pages via GitHub Actions (`.github/workflows/deploy.yml`),
+  eigene Domain über `public/CNAME`
+
+## Entwicklung
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Dann [http://localhost:3000](http://localhost:3000) öffnen. Der Spiel-Code liegt
+größtenteils in `src/game/` (Physik, Kollision, Spawning – bewusst außerhalb von
+React, siehe `GameEngine.ts`) und `src/components/` (React-UI drumherum).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build   # Static Export nach out/, wird von GitHub Actions deployt
+npm run lint
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Icons unter `public/icons/` werden aus `scripts/generate-icons.mjs` erzeugt
+(`node scripts/generate-icons.mjs`) – einfache Emoji-Platzhalter, kein externes
+Asset nötig.
 
-## Learn More
+## Umsetzungsstand
 
-To learn more about Next.js, take a look at the following resources:
+Alle 6 Phasen der ursprünglichen Spec sind umgesetzt:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Grundgerüst (Canvas, Game-Loop, Spieler-Dino springen/ducken, responsiv)
+2. Gegner & Kollision (Jäger-Annäherung, Hindernis-Spawning, faire Hitboxen)
+3. Punkte & Leben (Score, 3-Leben-System, Invincibility-Frames, Game-Over, High-Score)
+4. Power-ups (🍓 Beeren, ⚡ Tempo-Boost, 🛡️ Schild)
+5. Dino-Auswahl (3 spielbare Dinos, 2 Jäger-Typen, Auswahlbildschirm)
+6. PWA-Polish (Manifest, Service Worker, Safe-Area-Insets, Sound-Effekte)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MVP-Grafiken sind bewusst einfache geometrische Formen/Emoji statt echter
+Sprites – kann iterativ durch Pixel-Art ersetzt werden.
