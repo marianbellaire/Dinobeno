@@ -4,7 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LOGICAL_HEIGHT, STARTING_LIVES, TOUCH_TARGET_SIZE } from "@/game/constants";
 import { GameEngine } from "@/game/GameEngine";
 import { loadHighScore, saveHighScore } from "@/game/highscore";
-import { loadMuted, playBerry, playGameOver, playHit, playJump, saveMuted, setMuted } from "@/game/sound";
+import { startMusic, setMusicMuted, stopMusic } from "@/game/music";
+import {
+  loadMuted,
+  playBerry,
+  playGameOver,
+  playGulp,
+  playHit,
+  playHunterBite,
+  playJump,
+  playLevelComplete,
+  saveMuted,
+  setMuted,
+} from "@/game/sound";
 import type { DinoConfig } from "@/game/types";
 import { useGameLoop } from "@/hooks/useGameLoop";
 import DinoSelectScreen from "./DinoSelectScreen";
@@ -19,6 +31,8 @@ export default function GameCanvas() {
   const scoreRef = useRef<HTMLDivElement>(null);
   const boostRef = useRef<HTMLSpanElement>(null);
   const shieldRef = useRef<HTMLSpanElement>(null);
+  const levelRef = useRef<HTMLSpanElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
 
   // null = Auswahlbildschirm wird gezeigt, das Spiel läuft noch nicht (Phase 5).
   const [playerDino, setPlayerDino] = useState<DinoConfig | null>(null);
@@ -29,22 +43,36 @@ export default function GameCanvas() {
   // Game-Over-Overlay auftaucht, nie im initialen HTML.
   const [highScore, setHighScore] = useState(loadHighScore);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  // Gerade geschafftes Level während der Vulkan-Feier, sonst null.
+  const [celebratedLevel, setCelebratedLevel] = useState<number | null>(null);
   // Lazy-Init wie beim High-Score – der Wert wirkt sich erst nach dem Mount aus.
   const [muted, setMutedState] = useState(loadMuted);
 
   useEffect(() => {
     setMuted(muted);
+    setMusicMuted(muted);
     saveMuted(muted);
   }, [muted]);
+
+  // Musik beim Verlassen der Seite/Komponente stoppen.
+  useEffect(() => stopMusic, []);
 
   const engineRef = useRef<GameEngine | null>(null);
 
   const selectDino = useCallback((dino: DinoConfig) => {
     engineRef.current = new GameEngine(dino, {
-      onHit: () => playHit(),
+      onHit: (source) => (source === "hunter" ? playHunterBite() : playHit()),
       onBerryCollected: () => playBerry(),
+      onMeteorEaten: () => playGulp(),
       onLifeLost: (livesRemaining) => setLives(livesRemaining),
+      onLevelComplete: (level, livesNow) => {
+        playLevelComplete();
+        setLives(livesNow);
+        setCelebratedLevel(level);
+      },
+      onLevelStart: () => setCelebratedLevel(null),
       onGameOver: (finalScore) => {
+        stopMusic();
         playGameOver();
         setGameOverScore(finalScore);
         setHighScore((prevHighScore) => {
@@ -58,10 +86,13 @@ export default function GameCanvas() {
     });
     setLives(STARTING_LIVES);
     setGameOverScore(null);
+    setCelebratedLevel(null);
     setPlayerDino(dino);
+    startMusic(); // Dino-Auswahl ist eine Nutzer-Geste → Autoplay erlaubt
   }, []);
 
   const changeDino = useCallback(() => {
+    stopMusic();
     engineRef.current = null;
     setGameOverScore(null);
     setPlayerDino(null);
@@ -74,12 +105,16 @@ export default function GameCanvas() {
     playJump();
     engineRef.current?.jump();
   }, []);
-  const doDuck = useCallback(() => engineRef.current?.duck(), []);
+  /** `held` = Ducken, bis releaseDuck kommt (Taste/Knopf); sonst feste Zeit (Swipe). */
+  const doDuck = useCallback((held: boolean) => engineRef.current?.duck(held), []);
+  const doReleaseDuck = useCallback(() => engineRef.current?.releaseDuck(), []);
 
   const restart = useCallback(() => {
     engineRef.current?.reset();
     setLives(STARTING_LIVES);
     setGameOverScore(null);
+    setCelebratedLevel(null);
+    startMusic();
   }, []);
 
   // Canvas-Größe an den Container anpassen (responsive, inkl. High-DPI-Schärfe).
@@ -115,14 +150,24 @@ export default function GameCanvas() {
       if (e.code === "Space" || e.code === "ArrowUp") {
         e.preventDefault();
         doJump();
-      } else if (e.code === "ArrowDown") {
+      } else if (e.code === "ArrowDown" || e.code === "KeyS") {
         e.preventDefault();
-        doDuck();
+        doDuck(true);
       }
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "ArrowDown" || e.code === "KeyS") doReleaseDuck();
+    };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [doJump, doDuck]);
+    window.addEventListener("keyup", onKeyUp);
+    // Fenster verliert den Fokus → keyup kommt nie an, Ducken nicht "hängen" lassen.
+    window.addEventListener("blur", doReleaseDuck);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", doReleaseDuck);
+    };
+  }, [doJump, doDuck, doReleaseDuck]);
 
   // Touch-Gesten auf dem Canvas: Tap = Springen, Swipe nach unten = Ducken.
   const touchStartY = useRef<number | null>(null);
@@ -137,7 +182,7 @@ export default function GameCanvas() {
     const deltaY = e.touches[0].clientY - touchStartY.current;
     if (deltaY > SWIPE_DOWN_THRESHOLD) {
       swipeHandled.current = true;
-      doDuck();
+      doDuck(false);
     }
   };
   const onTouchEnd = () => {
@@ -174,6 +219,12 @@ export default function GameCanvas() {
     }
     if (shieldRef.current) {
       shieldRef.current.hidden = !engine.hasShield;
+    }
+    if (levelRef.current) {
+      levelRef.current.textContent = `Level ${engine.level}`;
+    }
+    if (progressRef.current) {
+      progressRef.current.style.width = `${engine.levelProgress * 100}%`;
     }
 
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
@@ -234,7 +285,32 @@ export default function GameCanvas() {
             <span ref={shieldRef} hidden aria-label="Schild aktiv" className="text-lg">
               🛡️
             </span>
+            <span className="flex flex-col gap-0.5">
+              <span ref={levelRef} className="text-xs font-bold leading-none">
+                Level 1
+              </span>
+              <span className="block h-1.5 w-16 overflow-hidden rounded-full bg-white/30">
+                <span ref={progressRef} className="block h-full w-0 rounded-full bg-amber-300" />
+              </span>
+            </span>
           </div>
+
+          {/* Vulkan-Feier: Der Vulkan selbst wird im Canvas gezeichnet, hier nur der Jubel-Text. */}
+          {celebratedLevel !== null && (
+            <div
+              key={celebratedLevel}
+              className="level-pop pointer-events-none absolute inset-x-0 top-[18%] flex flex-col items-center text-center text-white"
+              role="status"
+            >
+              <p className="text-4xl drop-shadow-lg sm:text-5xl">🌋🎉🦕</p>
+              <p className="mt-1 text-3xl font-extrabold drop-shadow-[0_3px_0_rgba(0,0,0,0.35)] sm:text-4xl">
+                Level {celebratedLevel} geschafft!
+              </p>
+              <p className="mt-1 text-lg font-semibold drop-shadow-[0_2px_0_rgba(0,0,0,0.35)]">
+                Juhu! Weiter geht&apos;s mit Level {celebratedLevel + 1} ❤️+1
+              </p>
+            </div>
+          )}
 
           {/* On-Screen-Buttons als Fallback für Kinder, die mit Swipe-Gesten unsicher sind. */}
           <div
@@ -252,8 +328,12 @@ export default function GameCanvas() {
               style={{ width: TOUCH_TARGET_SIZE, height: TOUCH_TARGET_SIZE }}
               onPointerDown={(e) => {
                 e.preventDefault();
-                doDuck();
+                e.currentTarget.setPointerCapture(e.pointerId);
+                doDuck(true);
               }}
+              onPointerUp={doReleaseDuck}
+              onPointerCancel={doReleaseDuck}
+              onLostPointerCapture={doReleaseDuck}
             >
               ⬇️
             </button>

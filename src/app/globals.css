@@ -24,3 +24,43 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* "Level geschafft!"-Einblendung während der Vulkan-Feier: ploppt rein, wippt, blendet aus. */
+@keyframes level-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) translateY(20px);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1.15) translateY(0);
+  }
+  20% {
+    transform: scale(1) rotate(-2deg);
+  }
+  30%,
+  60% {
+    transform: scale(1.04) rotate(2deg);
+  }
+  45%,
+  75% {
+    transform: scale(1) rotate(-2deg);
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1) translateY(-10px);
+  }
+}
+
+.level-pop {
+  animation: level-pop 3.5s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .level-pop {
+    animation: none;
+  }
+}
